@@ -30,6 +30,12 @@ public class Finish : MonoBehaviour
 
     bool b = true;
 
+    void OnDrawGizmos()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireCube((Vector2)transform.position + collider.offset, collider.bounds.size);
+    }
+
     void Update()
     {
         if (!collider.isTrigger)
@@ -47,9 +53,11 @@ public class Finish : MonoBehaviour
 
     public void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.GetComponent<Wheel>() != null)
+        Wheel wheel = collision.GetComponent<Wheel>();
+        if (wheel != null)
         {
             hasWon = true;
+            wheel.rigidbody.isKinematic = true;
         }
     }
 }

@@ -7,10 +7,16 @@ public class Player : MonoBehaviour
 
     [Header("Input")]
     public string[] Mouse = { "Fire1", "Fire2" };
+    public string[] Tags = { "Clickable" };
 
-    bool holding, dragging;
-    public float holdSensitivity, dragRadius;
+    public float holdSensitivity, dragRadius, power;
+    public Wheel wheel;
 
+    public Vector2 mousePosition
+    {
+        get { return camera.ScreenToWorldPoint(Input.mousePosition); }
+        private set { return; }
+    }
     public bool isDragging
     {
         get
@@ -19,12 +25,6 @@ public class Player : MonoBehaviour
         }
         private set { return; }
     }
-
-    public Wheel wheel;
-
-    float s;
-    Vector2 pos;
-
     public new Camera camera
     {
         get
@@ -37,51 +37,61 @@ public class Player : MonoBehaviour
     }
     Camera cam;
 
+    
+
+    bool holding, dragging, hasWheel;
+    float sens;
+    Collider2D[] objects;
+    Vector2 pos, dir;
+
     void OnDrawGizmos()
     {
-        Gizmos.color = Color.magenta;
-        Vector3 pos = camera.ViewportToWorldPoint(Input.mousePosition);
-        pos.z = 0;
-        Gizmos.DrawWireSphere(pos, 0.25f);
+        Gizmos.color = (isDragging) ? Color.green : Color.red;
+        Gizmos.DrawWireSphere(mousePosition, 0.25f);
     }
 
-    GameObject Pick()
+    Collider2D[] Pick()
     {
-        Ray pick = camera.ScreenPointToRay(Input.mousePosition);
-        RaycastHit2D hit = Physics2D.Raycast(pick.origin, pick.direction);
-        if (hit)
-        {
-            Debug.DrawLine(Vector3.zero, hit.centroid, Color.white, 1f);
-            return hit.transform.GetComponent<GameObject>();
-        }
-        return null;
+        return Physics2D.OverlapPointAll(mousePosition);
     }
-
-    GameObject obj;
 
     void Update()
     {
+        
+        if (pos != Vector2.zero)
+            Debug.DrawLine(pos, mousePosition);
 
+        // HOLDING & DRAGGING
         if (Input.GetButtonDown(Mouse[0]))
         {
-            s = holdSensitivity;
-            pos = Input.mousePosition;
+            sens = holdSensitivity;
+            mousePosition = Input.mousePosition;
 
-            obj = Pick();
+            objects = Pick();
+            foreach (Collider2D obj in objects)
+            {
+                if (obj.tag == "Clickable")
+                    hasWheel = true;
+            }
+
+            pos = mousePosition;
         }
 
         if (Input.GetButton(Mouse[0]))
         {
-            float dist = Vector2.Distance(pos, Input.mousePosition);
+
+            dir = pos - mousePosition;
+
+            float dist = Vector2.Distance(pos, mousePosition);
 
             if (dist > dragRadius)
                 dragging = true;
             else
                 dragging = false;
 
-            if (s > 0)
+            if (sens > 0)
             {
-                s -= Time.deltaTime;
+                sens -= Time.deltaTime;
                 holding = false;
             }
             else
@@ -92,16 +102,24 @@ public class Player : MonoBehaviour
 
         if (Input.GetButtonUp(Mouse[0]))
         {
-            s = holdSensitivity;
-            holding = false;
-            dragging = false;
+            if (hasWheel)
+            {
+                wheel.rigidbody.AddForce(dir.normalized * -dir.magnitude, ForceMode2D.Impulse);
+                wheel.rigidbody.AddTorque((dir.magnitude * power) * dir.normalized.x);
+            }
+            hasWheel = false;
+
+            FlushMouseInput();
         }
-
+        // HOLDING & DRAGGING
     }
 
-    void OnGUI()
+    void FlushMouseInput()
     {
-        GUILayout.Label(isDragging.ToString());
-        GUILayout.Label((obj == null) ? "None" : obj.ToString());
+        pos = Vector2.zero;
+        sens = holdSensitivity;
+        holding = false;
+        dragging = false;
     }
+
 }
